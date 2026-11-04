@@ -30,11 +30,11 @@ void cleanup(int x) {
 void operate(GtkWidget *win, gpointer data) {
 
   if(oper_mode == 0) {
-    gtk_button_set_label(GTK_BUTTON(button_oper), "OFF");
+    gtk_button_set_label(GTK_BUTTON(button_oper), "Now ON");
     set_operate(acom_fd);
     oper_mode = 1;
   } else {
-    gtk_button_set_label(GTK_BUTTON(button_oper), "ON");
+    gtk_button_set_label(GTK_BUTTON(button_oper), "Now OFF");
     set_standby(acom_fd);
     oper_mode = 0;
   }
@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
   hbox2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
 
-  button_oper = gtk_button_new_with_label("ON");
+  button_oper = gtk_button_new_with_label("Now OFF");
 
   gtk_box_append(GTK_BOX(hbox1), fpower_label);
   gtk_box_append(GTK_BOX(hbox1), fpower);
