@@ -20,6 +20,18 @@ GtkWidget *fpower, *rpower, *button_oper;
 int acom_fd, oper_mode = 0;
 extern struct acom2000 acom2000;
 
+const char *css = 
+  ".btn-red {"
+  "  background-color: #e01b24;"
+  "  color: white;"
+  "  background-image: none;"
+  "}"
+  ".btn-yellow {"
+  "  background-color: #f6d32d;"
+  "  color: black;"
+  "  background-image: none;"
+  "}";
+
 void cleanup(int x) {
 
   stop_measurement(acom_fd);
@@ -31,10 +43,14 @@ void operate(GtkWidget *win, gpointer data) {
 
   if(oper_mode == 0) {
     gtk_button_set_label(GTK_BUTTON(button_oper), "Now ON");
+    gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-yellow");
+    gtk_widget_add_css_class(button_oper, "btn-red");
     set_operate(acom_fd);
     oper_mode = 1;
   } else {
     gtk_button_set_label(GTK_BUTTON(button_oper), "Now OFF");
+    gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-red");
+    gtk_widget_add_css_class(button_oper, "btn-yellow");
     set_standby(acom_fd);
     oper_mode = 0;
   }
@@ -57,7 +73,8 @@ int main(int argc, char *argv[]) {
 
   GtkWidget *window, *hbox1, *hbox2, *vbox;
   GtkWidget *fpower_label, *rpower_label;
-  
+  GtkCssProvider *prov;
+    
   signal(SIGINT, cleanup);
   gtk_init();
   window = gtk_window_new();
@@ -92,6 +109,15 @@ int main(int argc, char *argv[]) {
 
   gtk_window_set_child(GTK_WINDOW(window), vbox);
 
+  prov = gtk_css_provider_new();
+  gtk_css_provider_load_from_string(prov, css);  
+  gtk_style_context_add_provider_for_display(gdk_display_get_default(),
+					     GTK_STYLE_PROVIDER(prov),
+					     GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
+					    );
+  g_object_unref(prov);
+  gtk_widget_add_css_class(button_oper, "btn-yellow");
+  
   g_signal_connect(button_oper, "clicked", G_CALLBACK(operate), NULL);
 
   gtk_widget_set_visible(window, TRUE);
