@@ -16,7 +16,7 @@
 
 #define UPDATE 50
 
-GtkWidget *fpower, *rpower, *button_oper;
+GtkWidget *fpower, *rpower, *swr, *button_oper;
 int acom_fd, oper_mode = 0;
 extern struct acom2000 acom2000;
 
@@ -59,27 +59,33 @@ void operate(GtkWidget *win, gpointer data) {
 static gboolean update_power(void *asd) {
 
   char buf[128];
+  double cswr, gamma;
 
   process_data(acom_fd);
   sprintf(buf, "%.0lf W", acom2000.fwd_power);
   gtk_label_set_text(GTK_LABEL(fpower), buf);
   sprintf(buf, "%.0lf W", acom2000.refl_power);
   gtk_label_set_text(GTK_LABEL(rpower), buf);
+  gamma = sqrt(acom2000.refl_power / acom2000.fwd_power);
+  cswr = (1.0 + gamma) / (1 - gamma);
+  sprintf(buf, "%.1lf", cswr);
+  gtk_label_set_text(GTK_LABEL(swr), buf);
+
   return 1;
 }
 
 
 int main(int argc, char *argv[]) {
 
-  GtkWidget *window, *hbox1, *hbox2, *vbox;
-  GtkWidget *fpower_label, *rpower_label;
+  GtkWidget *window, *hbox1, *hbox2, *hbox3, *vbox;
+  GtkWidget *fpower_label, *rpower_label, *swr_label;
   GtkCssProvider *prov;
     
   signal(SIGINT, cleanup);
   gtk_init();
   window = gtk_window_new();
   gtk_window_set_title(GTK_WINDOW(window), "ACOM 2000A");
-  gtk_window_set_default_size(GTK_WINDOW(window), 100, 80);
+  gtk_window_set_default_size(GTK_WINDOW(window), 200, 80);
 
   fpower_label = gtk_label_new("Forward power (W): ");
   gtk_label_set_xalign(GTK_LABEL(fpower_label), 0.0); // 0 = left, 1 = right
@@ -91,8 +97,14 @@ int main(int argc, char *argv[]) {
   rpower = gtk_label_new("0.0 W");
   gtk_label_set_xalign(GTK_LABEL(rpower), 0.0); // 0 = left, 1 = right
 
+  swr_label = gtk_label_new("SWR               : ");
+  gtk_label_set_xalign(GTK_LABEL(swr_label), 0.0); // 0 = left, 1 = right
+  swr = gtk_label_new("---");
+  gtk_label_set_xalign(GTK_LABEL(swr), 0.0); // 0 = left, 1 = right
+
   hbox1 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
   hbox2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+  hbox3 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
 
   button_oper = gtk_button_new_with_label("Now OFF");
@@ -103,8 +115,12 @@ int main(int argc, char *argv[]) {
   gtk_box_append(GTK_BOX(hbox2), rpower_label);
   gtk_box_append(GTK_BOX(hbox2), rpower);
  
+  gtk_box_append(GTK_BOX(hbox3), swr_label);
+  gtk_box_append(GTK_BOX(hbox3), swr);
+
   gtk_box_append(GTK_BOX(vbox), hbox1);
   gtk_box_append(GTK_BOX(vbox), hbox2);
+  gtk_box_append(GTK_BOX(vbox), hbox3);
   gtk_box_append(GTK_BOX(vbox), button_oper);
 
   gtk_window_set_child(GTK_WINDOW(window), vbox);
@@ -122,6 +138,7 @@ int main(int argc, char *argv[]) {
 
   gtk_widget_set_visible(window, TRUE);
 
+  bzero(&acom2000, sizeof(struct acom2000));
   if((acom_fd = open(SERIAL_PORT, O_RDWR)) < 0) {
     fprintf(stderr, "Can't open device.\n");
     exit(1);
