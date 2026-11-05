@@ -14,7 +14,7 @@
 #include "extern.h"
 #include "config.h"
 
-#define UPDATE 50
+#define UPDATE 50  // in milliseconds
 
 GtkWidget *fpower, *rpower, *swr, *button_oper;
 int acom_fd;
@@ -63,7 +63,8 @@ static gboolean update_power(void *asd) {
   if(acom2000.refl_power > 0.0 && acom2000.fwd_power > 0.0) {
     gamma = sqrt(acom2000.refl_power / acom2000.fwd_power);
     cswr = (1.0 + gamma) / (1 - gamma);
-    sprintf(buf, "%.1lf", cswr);
+    if(cswr < 1.0) sprintf(buf, "----");
+    else sprintf(buf, "%.1lf", cswr);
   } else sprintf(buf, "----");
   gtk_label_set_text(GTK_LABEL(swr), buf);
   if(acom2000.opr_stby == 1) {
