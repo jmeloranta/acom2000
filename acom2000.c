@@ -17,7 +17,7 @@
 #define UPDATE 50
 
 GtkWidget *fpower, *rpower, *swr, *button_oper;
-int acom_fd, oper_mode = 0;
+int acom_fd;
 extern struct acom2000 acom2000;
 
 const char *css = 
@@ -41,19 +41,8 @@ void cleanup(int x) {
 
 void operate(GtkWidget *win, gpointer data) {
 
-  if(oper_mode == 0) {
-    gtk_button_set_label(GTK_BUTTON(button_oper), "Now ON");
-    gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-yellow");
-    gtk_widget_add_css_class(button_oper, "btn-red");
-    set_operate(acom_fd);
-    oper_mode = 1;
-  } else {
-    gtk_button_set_label(GTK_BUTTON(button_oper), "Now OFF");
-    gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-red");
-    gtk_widget_add_css_class(button_oper, "btn-yellow");
-    set_standby(acom_fd);
-    oper_mode = 0;
-  }
+  if(acom2000.opr_stby == 0) set_operate(acom_fd);
+  else set_standby(acom_fd);
 }
 
 static gboolean update_power(void *asd) {
@@ -70,6 +59,15 @@ static gboolean update_power(void *asd) {
   cswr = (1.0 + gamma) / (1 - gamma);
   sprintf(buf, "%.1lf", cswr);
   gtk_label_set_text(GTK_LABEL(swr), buf);
+  if(acom2000.opr_stby == 1) {
+    gtk_button_set_label(GTK_BUTTON(button_oper), "Now ON");
+    gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-yellow");
+    gtk_widget_add_css_class(button_oper, "btn-red");
+  } else {
+    gtk_button_set_label(GTK_BUTTON(button_oper), "Now OFF");
+    gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-red");
+    gtk_widget_add_css_class(button_oper, "btn-yellow");
+  }
 
   return 1;
 }
@@ -145,7 +143,6 @@ int main(int argc, char *argv[]) {
   }
   setup_tty(acom_fd);
   set_standby(acom_fd);
-  oper_mode = 0;
   
   start_measurement(acom_fd, 'i', 't'); // forward power(i) and reflected power(t)
   g_timeout_add(UPDATE, update_power, NULL);

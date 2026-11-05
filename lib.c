@@ -110,12 +110,14 @@ static void send_cmd(int fd, uint8_t src, uint8_t dst, uint8_t *msg) {
 void set_operate(int fd) {
 
   send_cmd(fd, COMPUTER, AMPLIFIER, "O");
+  acom2000.opr_stby = 1;
   sleep(1); // needed?
 }
 
 void set_standby(int fd) {
 
   send_cmd(fd, COMPUTER, AMPLIFIER, "S");
+  acom2000.opr_stby = 0;
   sleep(1); // needed?
 }
 
@@ -142,6 +144,12 @@ void process_data(int fd) {
     tmp2 = (double) ((msg[3] - '0') * 16 + (msg[4] - '0'));
     tmp3 = (double) ((msg[1] - '0') * 16 * 16 * 16 + (msg[2] - '0') * 16 * 16 + (msg[3] - '0') * 16 + msg[4] - '0');
     switch(msg[0]) {
+    case 'O': // Switched to operate
+      acom2000.opr_stby = 1;
+      break;
+    case 'S': // Switched to standby
+      acom2000.opr_stby = 0;
+      break;
     case 'L':   // Amplifier is on the network identifier
       acom2000.address = src;
       if(debug) fprintf(stderr, "Amplifier network address = %2x\n", src);
