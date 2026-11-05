@@ -41,8 +41,13 @@ void cleanup(int x) {
 
 void operate(GtkWidget *win, gpointer data) {
 
-  if(acom2000.opr_stby == 0) set_operate(acom_fd);
-  else set_standby(acom_fd);
+  if(acom2000.opr_stby == 0) {
+    set_operate(acom_fd);
+    start_measurement(acom_fd, 'i', 't'); // forward power(i) and reflected power(t)
+  } else {
+    set_standby(acom_fd);
+    stop_measurement(acom_fd);
+  }
 }
 
 static gboolean update_power(void *asd) {
@@ -55,9 +60,11 @@ static gboolean update_power(void *asd) {
   gtk_label_set_text(GTK_LABEL(fpower), buf);
   sprintf(buf, "%.0lf W", acom2000.refl_power);
   gtk_label_set_text(GTK_LABEL(rpower), buf);
-  gamma = sqrt(acom2000.refl_power / acom2000.fwd_power);
-  cswr = (1.0 + gamma) / (1 - gamma);
-  sprintf(buf, "%.1lf", cswr);
+  if(acom2000.refl_power > 0.0 && acom2000.fwd_power > 0.0) {
+    gamma = sqrt(acom2000.refl_power / acom2000.fwd_power);
+    cswr = (1.0 + gamma) / (1 - gamma);
+    sprintf(buf, "%.1lf", cswr);
+  } else sprintf(buf, "----");
   gtk_label_set_text(GTK_LABEL(swr), buf);
   if(acom2000.opr_stby == 1) {
     gtk_button_set_label(GTK_BUTTON(button_oper), "Now ON");
@@ -144,7 +151,6 @@ int main(int argc, char *argv[]) {
   setup_tty(acom_fd);
   set_standby(acom_fd);
   
-  start_measurement(acom_fd, 'i', 't'); // forward power(i) and reflected power(t)
   g_timeout_add(UPDATE, update_power, NULL);
 
   while (g_list_model_get_n_items(gtk_window_get_toplevels()) > 0) // Main iteration loop
