@@ -62,6 +62,10 @@ static int read_until_null(int fd, uint8_t *buf, int maxlen) {
   
   while(1) {
     if((bytes_rd = read(fd, buf + pos, 1)) < 0) return -1;
+    if(buf[0] >= 0x80 && buf[0] <= 0xaf) { // single byte data
+      buf[1] = '\0';
+      return 1;
+    }
     if(bytes_rd == 0) {
       usleep(10000);
       continue;
@@ -79,9 +83,15 @@ static int read_cmd(int fd, uint8_t *src, uint8_t *dst, uint8_t *msg) {
 
   for(buf[0] = buf[1] = 0; buf[0] == 0 && buf[1] == 0; ) // eat up broken messages at the start
     read_until_null(fd, buf, MAXLEN);
-  *dst = buf[0];
-  *src = buf[1];
-  strcpy(msg, buf+2);
+  if(strlen(buf) == 1) {
+    *dst = *src = 0;
+    msg[0] = buf[0];
+    msg[1] = buf[1];
+  } else {
+    *dst = buf[0];
+    *src = buf[1];
+    strcpy(msg, buf+2);
+  }
 }
 
 static void write_slow(int fd, uint8_t *cmd, int length) {
@@ -96,6 +106,15 @@ static void write_slow(int fd, uint8_t *cmd, int length) {
     usleep(10000); // -"-
   }
 }
+
+/*
+ * Addresses:
+ *  0x40 - 0x4f: amplifiers
+ *  0x50 - 0x5f: antenna controllers
+ *  0x60 - 0x6f: transceivers
+ *  0x70 - 0x7f: computers
+ *
+ */
 
 static void send_cmd(int fd, uint8_t src, uint8_t dst, uint8_t *msg) {
 
@@ -135,14 +154,20 @@ void process_data(int fd) {
     FD_SET(fd, &fds);
     if(!select(fd+1, &fds, NULL, NULL, &timeout)) return; // no more data
     read_cmd(fd, &src, &dst, msg);
+    if(src == 0 && dst == 0) { // single byte cmd for RCU leds
+      if(msg[0] >= 0x80 && msg[0] <= 0x90) acom2000.led_fwd = msg[0] - 0x80;
+      else if(msg[0] >= 0xa0 && msg[0] <= 0xa8) acom2000.led_refl = msg[0] - 0xa0;
+      else fprintf(stderr, "Unknown single byte command %x\n", msg[0]);
+      continue;
+    }
     if(src != AMPLIFIER || (dst != COMPUTER && dst != BROADCAST)) {
       fprintf(stderr, "Message from %2x to %2x - ignored.\n", src, dst);
       return;
     }
     if(!FD_ISSET(fd, &fds)) return;
-    tmp = (double) ((msg[1] - '0') * 16 + (msg[2] - '0'));
-    tmp2 = (double) ((msg[3] - '0') * 16 + (msg[4] - '0'));
-    tmp3 = (double) ((msg[1] - '0') * 16 * 16 * 16 + (msg[2] - '0') * 16 * 16 + (msg[3] - '0') * 16 + msg[4] - '0');
+    tmp = (double) ((msg[1] - '0') * 16 + (msg[2] - '0')); // xx 
+    tmp2 = (double) ((msg[3] - '0') * 16 + (msg[4] - '0')); // yy
+    tmp3 = (double) ((msg[1] - '0') * 16 * 16 * 16 + (msg[2] - '0') * 16 * 16 + (msg[3] - '0') * 16 + msg[4] - '0'); // xxyy
     switch(msg[0]) {
     case 'O': // Switched to operate
       acom2000.opr_stby = 1;
@@ -241,6 +266,28 @@ void process_data(int fd) {
 	if(debug) fprintf(stderr, "VSWR = %lf.\n", acom2000.vswr);
       }
       break;
+    case 'U':
+      // RCU status leds
+      // bit 0 oper led: 0 = off, 1 = on
+      // bit 1 drive led: 0 = off, 1 = on
+      // bit 2 IP led: 0 = off, 1 = on
+      // bit 3 not used
+      // bits 4,5: (0,0) = off, (0,1) = blinks, (1,0) = on
+      // bits 6,7: (0,0) = off, (0,1) = blinks, (1,0) = on
+      acom2000.rcu_status = tmp;
+      break;
+    case 'M':
+      if(msg[1] == 'M') acom2000.rcu_active = 1; // RCU is active, can't measure
+      break;
+  case 'V': // Error state: 0 = no error, 1 = stop drive power , 2 = drive power too high, 3 = loss of user data
+              // 4 = battery warning
+      acom2000.error = msg[1] - '0';
+      break;
+    case 'W':
+      if(msg[1] == '1')
+	// 2-3 = xx, 4 = a, 5 = u, 6 = b
+	acom2000.band = msg[6] - '0'; // band number (1 = 160, 2 = 80, 3 = 40, 4 = 30, 5 = 20, 6 = 17, 7 = 15, 8 = 12, 9 = 10
+      break;
     default:
       // ignore
     }
@@ -255,6 +302,7 @@ void start_measurement(int fd, uint8_t a, uint8_t b) {
   buf[1] = a;
   buf[2] = b;
   buf[3] = '\0';
+  acom2000.rcu_active = 0;
   send_cmd(fd, COMPUTER, AMPLIFIER, buf);
 }
 
@@ -263,3 +311,7 @@ void stop_measurement(int fd) {
   send_cmd(fd, COMPUTER, AMPLIFIER, "MM");
 }
 
+void request_band(int fd) {
+
+  send_cmd(fd, COMPUTER, AMPLIFIER, "W7");
+}

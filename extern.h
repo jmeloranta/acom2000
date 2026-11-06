@@ -1,6 +1,8 @@
 struct acom2000 {
   uint8_t address;     // Amplifier address from broadcasted L message
   uint8_t opr_stby;    // 0 = standby, 1 = operate
+  uint8_t led_fwd;     // Forward power LED bar (0 - 16)
+  uint8_t led_refl;    // Reflected power LED bar (0 - 8)
   double amp_temp;     // Amplifier temperature (C)
   double bias;         // bias voltage (V)
   double dc_input;     // DC input (W)
@@ -22,8 +24,11 @@ struct acom2000 {
   double temp_f;       // Temperature of the front tube (C)
   double temp_r;       // Temperature of the rear tube (C)
   double vswr;         // VSWR
+  uint8_t rcu_status;  // RCU status indicators
+  uint8_t error;       // Amplifier error state
+  uint8_t rcu_active;  // RCU is actively measuring - can't do measure on the computer
+  uint8_t band;        // Current band (1 - 9)
 };
 
 extern void set_operate(int), set_standby(int), process_data(int), start_measurement(int, uint8_t, uint8_t);
-extern void stop_measurement(int), setup_tty(int);
-
+extern void stop_measurement(int), setup_tty(int), request_band(int);
