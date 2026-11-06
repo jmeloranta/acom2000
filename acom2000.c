@@ -160,12 +160,12 @@ int main(int argc, char *argv[]) {
   button_oper = gtk_button_new_with_label("Now OFF");
 
   grid = gtk_grid_new();
-  gtk_grid_set_column_spacing(GTK_GRID(grid), 20); // space between columns
-  gtk_grid_set_row_spacing(GTK_GRID(grid), 10);    // space between rows    
-  gtk_widget_set_margin_top(grid, 20);
-  gtk_widget_set_margin_bottom(grid, 20);
-  gtk_widget_set_margin_start(grid, 20);
-  gtk_widget_set_margin_end(grid, 20);
+  gtk_grid_set_column_spacing(GTK_GRID(grid), 10); // space between columns
+  gtk_grid_set_row_spacing(GTK_GRID(grid), 2);    // space between rows    
+  gtk_widget_set_margin_top(grid, 1);
+  gtk_widget_set_margin_bottom(grid, 1);
+  gtk_widget_set_margin_start(grid, 1);
+  gtk_widget_set_margin_end(grid, 1);
   
   gtk_grid_attach(GTK_GRID(grid), band_label, 0, 0, 1, 1); // col, row, width, height
   gtk_grid_attach(GTK_GRID(grid), band, 1, 0, 1, 1);
@@ -182,6 +182,7 @@ int main(int argc, char *argv[]) {
   gtk_grid_attach(GTK_GRID(grid), temp_label, 0, 4, 1, 1);
   gtk_grid_attach(GTK_GRID(grid), temp, 1, 4, 1, 1);
 
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
   gtk_box_append(GTK_BOX(vbox), grid);
   gtk_box_append(GTK_BOX(vbox), button_oper);
 
