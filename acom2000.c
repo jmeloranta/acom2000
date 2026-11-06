@@ -41,7 +41,7 @@ void cleanup(int x) {
 
 void operate(GtkWidget *win, gpointer data) {
 
-  if(acom2000.led_fwd > 0) return; // Do not turn to oper if there is indication of drive present (trips the amp)
+  if(acom2000.led_fwd > 0) return; // Do not turn to oper/stdby if there is indication of drive present (trips the amp)
   if(acom2000.opr_stby == 0) {
     set_operate(acom_fd);
     start_measurement(acom_fd, 'i', 't'); // forward power(i) and reflected power(t)
@@ -102,6 +102,8 @@ static gboolean update_power(void *asd) {
     cswr = (1.0 + gamma) / (1 - gamma);
     if(cswr < 1.0) sprintf(buf, "----");
     else sprintf(buf, "%.1lf", cswr);
+    if(cswr > 2.0) gtk_widget_add_css_class(GTK_WIDGET(swr), "btn-red");
+    else gtk_widget_remove_css_class(GTK_WIDGET(swr), "btn-red");
   } else sprintf(buf, "----");
   gtk_label_set_text(GTK_LABEL(swr), buf);
   if(acom2000.opr_stby == 1) {
@@ -216,7 +218,9 @@ int main(int argc, char *argv[]) {
   
   g_timeout_add(UPDATE, update_power, NULL);
 
+  if(acom2000.led_fwd > 0) set_standby(acom_fd);
   request_band(acom_fd);
+
   while (g_list_model_get_n_items(gtk_window_get_toplevels()) > 0) // Main iteration loop
     g_main_context_iteration(NULL, TRUE);
 
