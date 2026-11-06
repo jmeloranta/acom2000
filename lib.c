@@ -319,6 +319,7 @@ void stop_measurement(int fd) {
 
 void request_band(int fd) {
 
+  usleep(100000);
   send_cmd(fd, COMPUTER, AMPLIFIER, "W7");
   usleep(100000);
 }
