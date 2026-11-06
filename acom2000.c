@@ -132,27 +132,32 @@ int main(int argc, char *argv[]) {
   gtk_window_set_title(GTK_WINDOW(window), "ACOM 2000A");
   gtk_window_set_default_size(GTK_WINDOW(window), 200, 120);
 
-  band_label = gtk_label_new("Current band");
+  band_label = gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(band_label), "<b>Band</b>");
   gtk_label_set_xalign(GTK_LABEL(band_label), 0.0); // 0 = left, 1 = right
   band = gtk_label_new("----");
   gtk_label_set_xalign(GTK_LABEL(band), 0.0); // 0 = left, 1 = right
   
-  fpower_label = gtk_label_new("Forward power (W)");
+  fpower_label = gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(fpower_label), "<b>Forward power (W)</b>");
   gtk_label_set_xalign(GTK_LABEL(fpower_label), 0.0); // 0 = left, 1 = right
   fpower = gtk_label_new("0.0 W");
   gtk_label_set_xalign(GTK_LABEL(fpower), 0.0); // 0 = left, 1 = right
 
-  rpower_label = gtk_label_new("Reflected power (W)");
+  rpower_label = gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(rpower_label), "<b>Reflected power (W)</b>");
   gtk_label_set_xalign(GTK_LABEL(rpower_label), 0.0); // 0 = left, 1 = right
   rpower = gtk_label_new("0.0 W");
   gtk_label_set_xalign(GTK_LABEL(rpower), 0.0); // 0 = left, 1 = right
 
-  swr_label = gtk_label_new("SWR");
+  swr_label = gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(swr_label), "<b>SWR</b>");
   gtk_label_set_xalign(GTK_LABEL(swr_label), 0.0); // 0 = left, 1 = right
   swr = gtk_label_new("---");
   gtk_label_set_xalign(GTK_LABEL(swr), 0.0); // 0 = left, 1 = right
 
-  temp_label = gtk_label_new("Temperature");
+  temp_label = gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(temp_label), "<b>Temperature</b>");
   gtk_label_set_xalign(GTK_LABEL(temp_label), 0.0); // 0 = left, 1 = right
   temp = gtk_label_new("---");
   gtk_label_set_xalign(GTK_LABEL(temp), 0.0); // 0 = left, 1 = right
