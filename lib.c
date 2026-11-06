@@ -171,9 +171,11 @@ void process_data(int fd) {
     switch(msg[0]) {
     case 'O': // Switched to operate
       acom2000.opr_stby = 1;
+      if(debug) fprintf(stderr, "Switch to operate.\n");
       break;
     case 'S': // Switched to standby
       acom2000.opr_stby = 0;
+      if(debug) fprintf(stderr, "Switch to standby.\n");
       break;
     case 'L':   // Amplifier is on the network identifier
       acom2000.address = src;
@@ -232,7 +234,7 @@ void process_data(int fd) {
       acom2000.plate_i = tmp * 10.0;
       if(debug) fprintf(stderr, "I plate = %lf mA.\n", acom2000.plate_i);
       break;
-    case 'q': // I scree (mA)
+    case 'q': // I screen (mA)
       acom2000.screen_i = tmp;
       if(debug) fprintf(stderr, "I screen = %lf mA.\n", acom2000.screen_i);
       break;
@@ -275,18 +277,22 @@ void process_data(int fd) {
       // bits 4,5: (0,0) = off, (0,1) = blinks, (1,0) = on
       // bits 6,7: (0,0) = off, (0,1) = blinks, (1,0) = on
       acom2000.rcu_status = tmp;
+      if(debug) fprintf(stderr, "RCU status = %2x.\n", acom2000.rcu_status);
       break;
     case 'M':
       if(msg[1] == 'M') acom2000.rcu_active = 1; // RCU is active, can't measure
+      if(debug) fprintf(stderr, "RCU active - can't measure from computer.\n");
       break;
   case 'V': // Error state: 0 = no error, 1 = stop drive power , 2 = drive power too high, 3 = loss of user data
               // 4 = battery warning
       acom2000.error = msg[1] - '0';
+      if(debug) fprintf(stderr, "Error state = %x.\n", acom2000.error);
       break;
     case 'W':
       if(msg[1] == '1')
 	// 2-3 = xx, 4 = a, 5 = u, 6 = b
 	acom2000.band = msg[6] - '0'; // band number (1 = 160, 2 = 80, 3 = 40, 4 = 30, 5 = 20, 6 = 17, 7 = 15, 8 = 12, 9 = 10
+      if(debug) fprintf(stderr, "Current band = %x.\n", acom2000.band);
       break;
     default:
       // ignore
