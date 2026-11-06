@@ -15,6 +15,7 @@
 #include "config.h"
 
 #define UPDATE 50  // in milliseconds
+#define SWR_WARN 2.0 // warn above this SWR
 
 GtkWidget *band, *fpower, *rpower, *swr, *temp, *button_oper;
 int acom_fd;
@@ -102,7 +103,7 @@ static gboolean update_power(void *asd) {
     cswr = (1.0 + gamma) / (1 - gamma);
     if(cswr < 1.0) sprintf(buf, "----");
     else sprintf(buf, "%.1lf", cswr);
-    if(cswr > 2.0) gtk_widget_add_css_class(GTK_WIDGET(swr), "btn-red");
+    if(cswr > SWR_WARN) gtk_widget_add_css_class(GTK_WIDGET(swr), "btn-red");
     else gtk_widget_remove_css_class(GTK_WIDGET(swr), "btn-red");
   } else sprintf(buf, "----");
   gtk_label_set_text(GTK_LABEL(swr), buf);
