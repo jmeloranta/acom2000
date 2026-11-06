@@ -122,7 +122,7 @@ static gboolean update_power(void *asd) {
 
 int main(int argc, char *argv[]) {
 
-  GtkWidget *window, *hbox1, *hbox2, *hbox3, *hbox4, *hbox5, *vbox;
+  GtkWidget *window, *grid, *vbox;
   GtkWidget *band_label, *fpower_label, *rpower_label, *swr_label, *temp_label;
   GtkCssProvider *prov;
     
@@ -132,60 +132,57 @@ int main(int argc, char *argv[]) {
   gtk_window_set_title(GTK_WINDOW(window), "ACOM 2000A");
   gtk_window_set_default_size(GTK_WINDOW(window), 200, 120);
 
-  band_label = gtk_label_new("Current band: ");
+  band_label = gtk_label_new("Current band");
   gtk_label_set_xalign(GTK_LABEL(band_label), 0.0); // 0 = left, 1 = right
   band = gtk_label_new("----");
   gtk_label_set_xalign(GTK_LABEL(band), 0.0); // 0 = left, 1 = right
   
-  fpower_label = gtk_label_new("Forward power (W): ");
+  fpower_label = gtk_label_new("Forward power (W)");
   gtk_label_set_xalign(GTK_LABEL(fpower_label), 0.0); // 0 = left, 1 = right
   fpower = gtk_label_new("0.0 W");
   gtk_label_set_xalign(GTK_LABEL(fpower), 0.0); // 0 = left, 1 = right
 
-  rpower_label = gtk_label_new("Reflected power (W): ");
+  rpower_label = gtk_label_new("Reflected power (W)");
   gtk_label_set_xalign(GTK_LABEL(rpower_label), 0.0); // 0 = left, 1 = right
   rpower = gtk_label_new("0.0 W");
   gtk_label_set_xalign(GTK_LABEL(rpower), 0.0); // 0 = left, 1 = right
 
-  swr_label = gtk_label_new("SWR               : ");
+  swr_label = gtk_label_new("SWR");
   gtk_label_set_xalign(GTK_LABEL(swr_label), 0.0); // 0 = left, 1 = right
   swr = gtk_label_new("---");
   gtk_label_set_xalign(GTK_LABEL(swr), 0.0); // 0 = left, 1 = right
 
-  temp_label = gtk_label_new("Temperature: ");
+  temp_label = gtk_label_new("Temperature");
   gtk_label_set_xalign(GTK_LABEL(temp_label), 0.0); // 0 = left, 1 = right
   temp = gtk_label_new("---");
   gtk_label_set_xalign(GTK_LABEL(temp), 0.0); // 0 = left, 1 = right
   
-  hbox1 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-  hbox2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-  hbox3 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-  hbox4 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-  hbox5 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-
   button_oper = gtk_button_new_with_label("Now OFF");
 
-  gtk_box_append(GTK_BOX(hbox1), band_label);
-  gtk_box_append(GTK_BOX(hbox1), band);
-
-  gtk_box_append(GTK_BOX(hbox2), fpower_label);
-  gtk_box_append(GTK_BOX(hbox2), fpower);
+  grid = gtk_grid_new();
+  gtk_grid_set_column_spacing(GTK_GRID(grid), 20); // space between columns
+  gtk_grid_set_row_spacing(GTK_GRID(grid), 10);    // space between rows    
+  gtk_widget_set_margin_top(grid, 20);
+  gtk_widget_set_margin_bottom(grid, 20);
+  gtk_widget_set_margin_start(grid, 20);
+  gtk_widget_set_margin_end(grid, 20);
   
-  gtk_box_append(GTK_BOX(hbox3), rpower_label);
-  gtk_box_append(GTK_BOX(hbox3), rpower);
- 
-  gtk_box_append(GTK_BOX(hbox4), swr_label);
-  gtk_box_append(GTK_BOX(hbox4), swr);
+  gtk_grid_attach(GTK_GRID(grid), band_label, 0, 0, 1, 1); // col, row, width, height
+  gtk_grid_attach(GTK_GRID(grid), band, 1, 0, 1, 1);
 
-  gtk_box_append(GTK_BOX(hbox5), temp_label);
-  gtk_box_append(GTK_BOX(hbox5), temp);
-  
-  gtk_box_append(GTK_BOX(vbox), hbox1);
-  gtk_box_append(GTK_BOX(vbox), hbox2);
-  gtk_box_append(GTK_BOX(vbox), hbox3);
-  gtk_box_append(GTK_BOX(vbox), hbox4);
-  gtk_box_append(GTK_BOX(vbox), hbox5);
+  gtk_grid_attach(GTK_GRID(grid), fpower_label, 0, 1, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid), fpower, 1, 1, 1, 1);
+
+  gtk_grid_attach(GTK_GRID(grid), rpower_label, 0, 2, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid), rpower, 1, 2, 1, 1);
+
+  gtk_grid_attach(GTK_GRID(grid), swr_label, 0, 3, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid), swr, 1, 3, 1, 1);
+
+  gtk_grid_attach(GTK_GRID(grid), temp_label, 0, 4, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid), temp, 1, 4, 1, 1);
+
+  gtk_box_append(GTK_BOX(vbox), grid);
   gtk_box_append(GTK_BOX(vbox), button_oper);
 
   gtk_window_set_child(GTK_WINDOW(window), vbox);
