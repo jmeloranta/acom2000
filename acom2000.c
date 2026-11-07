@@ -24,14 +24,16 @@ char serial_port[256]; // serial device path
 
 const char *css = 
   ".btn-red {"
-  "  background-color: #e01b24;"
-  "  color: white;"
-  "  background-image: none;"
+  "  background: red;"
+  "  color: black;"
   "}"
   ".btn-yellow {"
-  "  background-color: #f6d32d;"
+  "  background: yellow;"
   "  color: black;"
-  "  background-image: none;"
+  "}"
+  ".btn-yellow:disabled {"
+  "   background: #d3d3d3;"
+  "   color: #888888;"
   "}";
 
 void cleanup(int x) {
@@ -300,6 +302,7 @@ static void startup_app(GtkApplication *app, gpointer data) {
   gtk_grid_attach(GTK_GRID(grid), temp, 1, 4, 1, 1);
 
   gtk_box_append(GTK_BOX(hbox), button_oper);
+  gtk_widget_set_sensitive(button_oper, FALSE);
   gtk_box_append(GTK_BOX(hbox), button_connect);
   gtk_box_append(GTK_BOX(hbox), button_config);
   
