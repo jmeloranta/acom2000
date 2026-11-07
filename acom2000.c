@@ -1,6 +1,8 @@
 /*
  * GUI for ACOM 2000A control.
  *
+ * Jussi Eloranta (AA6KJ) - eloranta@aa6kj.hopto.org
+ *
  */
 
 #define _GNU_SOURCE
