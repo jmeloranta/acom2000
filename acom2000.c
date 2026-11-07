@@ -270,6 +270,7 @@ static void startup_app(GtkApplication *app, gpointer data) {
   button_oper = gtk_button_new_with_label("Now OFF");
   gtk_widget_set_sensitive(button_oper, FALSE);
   button_config = gtk_button_new_with_label("    Port    ");
+  gtk_widget_set_hexpand(button_config, TRUE);
   button_connect = gtk_button_new_with_label("Connect");
 
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
