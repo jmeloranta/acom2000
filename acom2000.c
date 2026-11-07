@@ -18,8 +18,9 @@
 #define SWR_WARN 2.0 // warn above this SWR
 
 GtkWidget *band, *fpower, *rpower, *swr, *temp, *button_oper;
-int acom_fd;
+int acom_fd = -1;
 extern struct acom2000 acom2000;
+char serial_port[256]; // serial device path
 
 const char *css = 
   ".btn-red {"
@@ -35,12 +36,105 @@ const char *css =
 
 void cleanup(int x) {
 
-  stop_measurement(acom_fd);
-  close(acom_fd);
+  if(acom_fd != -1) {
+    stop_measurement(acom_fd);
+    if(acom2000.led_fwd == 0) set_standby(acom_fd);
+    close(acom_fd);
+  }
   exit(0);
 }  
 
-void operate(GtkWidget *win, gpointer data) {
+int amp_init() {
+
+  char *home, buf[256];
+  FILE *fp;
+  
+  if(!(home = getenv("HOME"))) {
+    fprintf(stderr, "Can't get home directory.\n");
+    exit(1);
+  }			      
+  sprintf(buf, "%s/%s", home, CONFIG);
+
+  if(serial_port[0] == '\0') {
+    if(!(fp = fopen(buf, "r"))) return -1;
+    if(!fgets(serial_port, sizeof(serial_port), fp)) {
+      fclose(fp);
+      serial_port[0] = '\0';
+      return -1;
+    }
+    fclose(fp);
+  }
+
+  bzero(&acom2000, sizeof(struct acom2000));
+  if(acom_fd != -1) close(acom_fd);
+  if((acom_fd = open(serial_port, O_RDWR)) < 0) return -1;
+
+  if(!(fp = fopen(buf, "w"))) {
+    fprintf(stderr, "Can't write config file.\n");
+    exit(1);
+  }
+  fputs(serial_port, fp);
+  fclose(fp);
+
+  setup_tty(acom_fd);
+  set_standby(acom_fd);
+
+  if(acom2000.led_fwd > 0) set_standby(acom_fd);
+  request_band(acom_fd);
+
+  return 0;
+}  
+
+void doconnect(GtkWidget *button, gpointer data) {
+
+  if(amp_init() < 0) {
+    fprintf(stderr, "Can't connect.\n");
+    exit(1);
+  }
+}
+
+void dialog_callback(GObject *src, GAsyncResult *result, gpointer data) {
+
+  GtkFileDialog *dialog;
+  GError *err = NULL;
+  GFile *file;
+  
+  dialog = GTK_FILE_DIALOG(src);
+  file = gtk_file_dialog_open_finish(dialog, result, &err);
+  if(file != NULL) {
+    char *path;
+    path = g_file_get_path(file);
+    strcpy(serial_port, path);
+    g_free(path);
+    g_object_unref(file);
+  } else {
+    fprintf(stderr, "Cancel.\n");
+    exit(1);
+  }
+}
+
+void config(GtkWidget *button, gpointer data) {
+
+  GtkFileDialog *dialog;
+  GFile *devices;
+  GtkWindow *win;
+  
+  win = GTK_WINDOW(gtk_widget_get_root(GTK_WIDGET(button)));
+  dialog = gtk_file_dialog_new();
+  gtk_file_dialog_set_title(dialog, "Select serial device");
+  gtk_file_dialog_set_modal(dialog, TRUE);  
+  if(!g_file_test(SERIAL_PORTS, G_FILE_TEST_IS_DIR)) {
+    fprintf(stderr, "No serial ports on the system.\n");
+    exit(1); // no serial ports
+  }    
+  devices = g_file_new_for_path(SERIAL_PORTS);
+  gtk_file_dialog_set_initial_folder (dialog, devices);
+  gtk_file_dialog_open(dialog, GTK_WINDOW(win), NULL, dialog_callback, NULL);
+  g_object_unref(dialog);
+  g_object_unref(devices);
+}
+
+void operate(GtkWidget *button, gpointer data) {
 
   if(acom2000.led_fwd > 0) return; // Do not turn to oper/stdby if there is indication of drive present (trips the amp)
   if(acom2000.opr_stby == 0) {
@@ -57,6 +151,7 @@ static gboolean update_power(void *asd) {
   char buf[128];
   double cswr, gamma;
 
+  if(acom2000.address > 0) gtk_widget_set_sensitive(button_oper, TRUE);
   process_data(acom_fd);
   switch(acom2000.band) {
   case 1:
@@ -105,7 +200,10 @@ static gboolean update_power(void *asd) {
     else sprintf(buf, "%.1lf", cswr);
     if(cswr > SWR_WARN) gtk_widget_add_css_class(GTK_WIDGET(swr), "btn-red");
     else gtk_widget_remove_css_class(GTK_WIDGET(swr), "btn-red");
-  } else sprintf(buf, "----");
+  } else {
+    sprintf(buf, "----");
+    gtk_widget_remove_css_class(GTK_WIDGET(swr), "btn-red");
+  }
   gtk_label_set_text(GTK_LABEL(swr), buf);
   if(acom2000.opr_stby == 1) {
     gtk_button_set_label(GTK_BUTTON(button_oper), "Now ON");
@@ -124,9 +222,9 @@ static gboolean update_power(void *asd) {
 
 static void startup_app(GtkApplication *app, gpointer data) {
 
-  GtkWidget *window;
-  GtkWidget *grid, *vbox;
-  GtkWidget *band_label, *fpower_label, *rpower_label, *swr_label, *temp_label;
+  GtkWidget *window, *vbox, *hbox;
+  GtkWidget *grid;
+  GtkWidget *band_label, *fpower_label, *rpower_label, *swr_label, *temp_label, *button_config, *button_connect;
   GtkCssProvider *prov;
   GdkDisplay *display;
   GtkIconTheme *icon_theme;
@@ -170,7 +268,13 @@ static void startup_app(GtkApplication *app, gpointer data) {
   gtk_label_set_xalign(GTK_LABEL(temp), 0.0); // 0 = left, 1 = right
   
   button_oper = gtk_button_new_with_label("Now OFF");
+  gtk_widget_set_sensitive(button_oper, FALSE);
+  button_config = gtk_button_new_with_label("    Port    ");
+  button_connect = gtk_button_new_with_label("Connect");
 
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+  hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+  
   grid = gtk_grid_new();
   gtk_grid_set_column_spacing(GTK_GRID(grid), 10); // space between columns
   gtk_grid_set_row_spacing(GTK_GRID(grid), 2);    // space between rows    
@@ -194,10 +298,13 @@ static void startup_app(GtkApplication *app, gpointer data) {
   gtk_grid_attach(GTK_GRID(grid), temp_label, 0, 4, 1, 1);
   gtk_grid_attach(GTK_GRID(grid), temp, 1, 4, 1, 1);
 
-  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+  gtk_box_append(GTK_BOX(hbox), button_oper);
+  gtk_box_append(GTK_BOX(hbox), button_connect);
+  gtk_box_append(GTK_BOX(hbox), button_config);
+  
   gtk_box_append(GTK_BOX(vbox), grid);
-  gtk_box_append(GTK_BOX(vbox), button_oper);
-
+  gtk_box_append(GTK_BOX(vbox), hbox);
+  
   gtk_window_set_child(GTK_WINDOW(window), vbox);
 
   prov = gtk_css_provider_new();
@@ -210,30 +317,24 @@ static void startup_app(GtkApplication *app, gpointer data) {
   gtk_widget_add_css_class(button_oper, "btn-yellow");  
 
   g_signal_connect(button_oper, "clicked", G_CALLBACK(operate), NULL);
+  g_signal_connect(button_config, "clicked", G_CALLBACK(config), NULL);
+  g_signal_connect(button_connect, "clicked", G_CALLBACK(doconnect), NULL);
   gtk_widget_set_visible(window, TRUE);
-}
 
+  amp_init();
+}
+  
 int main(int argc, char *argv[]) {
 
   GtkApplication *app;
   
   signal(SIGINT, cleanup);
+  serial_port[0] = '\0';
   app = gtk_application_new("org.hopto.aa6kj.acom2000", G_APPLICATION_DEFAULT_FLAGS);
 
   g_signal_connect (app, "activate", G_CALLBACK (startup_app), NULL);
-
-  bzero(&acom2000, sizeof(struct acom2000));
-  if((acom_fd = open(SERIAL_PORT, O_RDWR)) < 0) {
-    fprintf(stderr, "Can't open device.\n");
-    exit(1);
-  }
-  setup_tty(acom_fd);
-  set_standby(acom_fd);
   
   g_timeout_add(UPDATE, update_power, NULL);
-
-  if(acom2000.led_fwd > 0) set_standby(acom_fd);
-  request_band(acom_fd);
 
   g_application_run (G_APPLICATION (app), argc, argv);  
 

@@ -1,5 +1,8 @@
-// USB device handling ACOM2000 serial connection
-#define SERIAL_PORT "/dev/serial/by-id/usb-FTDI_US232R_FTUG418G-if00-port0"
+// Configuration file containing the serial device path
+#define CONFIG ".acom2000"
+
+// USB device directory
+#define SERIAL_PORTS "/dev/serial/by-id"
 
 // No need to change these
 #define COMPUTER  0x71    // computer address (q in ASCII)
