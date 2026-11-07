@@ -101,7 +101,7 @@ static void write_slow(int fd, uint8_t *cmd, int length) {
     exit(1);
   }
   for (int i = 0; i < length; i++) {
-    write(fd, &cmd[i], 1);
+    (void) write(fd, &cmd[i], 1);
     tcdrain(fd);   // is this needed?
     usleep(10000); // -"-
   }
