@@ -225,11 +225,11 @@ static gboolean update_power(void *asd) {
   gtk_label_set_text(GTK_LABEL(swr), buf);
 
   if(acom2000.opr_stby == 1) {
-    gtk_button_set_label(GTK_BUTTON(button_oper), "Now ON");
+    gtk_button_set_label(GTK_BUTTON(button_oper), "OPER");
     gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-yellow");
     gtk_widget_add_css_class(button_oper, "btn-red");
   } else {
-    gtk_button_set_label(GTK_BUTTON(button_oper), "Now OFF");
+    gtk_button_set_label(GTK_BUTTON(button_oper), "STDBY");
     gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-red");
     gtk_widget_add_css_class(button_oper, "btn-yellow");
   }
@@ -286,7 +286,7 @@ static void startup_app(GtkApplication *app, gpointer data) {
   temp = gtk_label_new("---");
   gtk_label_set_xalign(GTK_LABEL(temp), 0.0); // 0 = left, 1 = right
   
-  button_oper = gtk_button_new_with_label("Now OFF");
+  button_oper = gtk_button_new_with_label("STDBY");
   gtk_widget_set_sensitive(button_oper, FALSE);
   button_config = gtk_button_new_with_label("    Port    ");
   gtk_widget_set_hexpand(button_config, TRUE);
