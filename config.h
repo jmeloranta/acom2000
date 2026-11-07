@@ -11,3 +11,9 @@
 
 // Icon directory
 #define ICON_DIR "/usr/local/share/icons/hicolor/32x32/apps"
+
+// Update interval in milliseconds
+#define UPDATE 50
+
+// SWR warning threshold
+#define SWR_WARN 2.0

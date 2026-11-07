@@ -16,9 +16,6 @@
 #include "extern.h"
 #include "config.h"
 
-#define UPDATE 50  // in milliseconds
-#define SWR_WARN 2.0 // warn above this SWR
-
 GtkWidget *band, *fpower, *rpower, *swr, *temp, *button_oper;
 int acom_fd = -1;
 extern struct acom2000 acom2000;
@@ -74,11 +71,11 @@ int amp_init(GtkWindow *win) {
 
   char *home, buf[256];
   FILE *fp;
-  
+    
   if(!(home = getenv("HOME")))
     show_err_dialog("Can't get home directory.", win);
   sprintf(buf, "%s/%s", home, CONFIG);
-
+  
   if(serial_port[0] == '\0') {
     if(!(fp = fopen(buf, "r"))) return -1;
     if(!fgets(serial_port, sizeof(serial_port), fp)) {
@@ -95,7 +92,6 @@ int amp_init(GtkWindow *win) {
 
   if(!(fp = fopen(buf, "w")))
     show_err_dialog("Can't write config file.", win);
-
   fputs(serial_port, fp);
   fclose(fp);
 
@@ -112,7 +108,7 @@ void doconnect(GtkWidget *button, gpointer data) {
 
   GtkWindow *win = GTK_WINDOW(gtk_widget_get_root(GTK_WIDGET(button)));
   if(amp_init(win) < 0)
-    show_err_dialog("Can't connect.", win);
+    show_err_dialog("Can't connect to amplifier.", win);
 }
 
 void dialog_callback(GObject *src, GAsyncResult *result, gpointer data) {
@@ -130,7 +126,7 @@ void dialog_callback(GObject *src, GAsyncResult *result, gpointer data) {
     strcpy(serial_port, path);
     g_free(path);
     g_object_unref(file);
-  } else g_application_quit(G_APPLICATION(app));
+  } else g_application_quit(G_APPLICATION(app)); // cancel
 }
 
 void config(GtkWidget *button, gpointer data) {
@@ -155,7 +151,8 @@ void config(GtkWidget *button, gpointer data) {
 
 void operate(GtkWidget *button, gpointer data) {
 
-  if(acom2000.led_fwd > 0) return; // Do not turn to oper/stdby if there is indication of drive present (trips the amp)
+  // Do not turn to oper/stdby if there is indication of drive present (trips the amp)
+  if(acom2000.led_fwd > 0) return;
   if(acom2000.opr_stby == 0) {
     set_operate(acom_fd);
     start_measurement(acom_fd, 'i', 't'); // forward power(i) and reflected power(t)
@@ -203,6 +200,7 @@ static gboolean update_power(void *asd) {
   default:
     gtk_label_set_text(GTK_LABEL(band), "----");
   }
+
   if(acom2000.rcu_active) {
     gtk_label_set_text(GTK_LABEL(fpower), "-----");
     gtk_label_set_text(GTK_LABEL(rpower), "-----");
@@ -212,9 +210,10 @@ static gboolean update_power(void *asd) {
   gtk_label_set_text(GTK_LABEL(fpower), buf);
   sprintf(buf, "%.0lf W", acom2000.refl_power);
   gtk_label_set_text(GTK_LABEL(rpower), buf);
+
   if(acom2000.refl_power > 0.0 && acom2000.fwd_power > 0.0) {
     gamma = sqrt(acom2000.refl_power / acom2000.fwd_power);
-    cswr = (1.0 + gamma) / (1 - gamma);
+    cswr = (1.0 + gamma) / (1.0 - gamma);
     if(cswr < 1.0) sprintf(buf, "----");
     else sprintf(buf, "%.1lf", cswr);
     if(cswr > SWR_WARN) gtk_widget_add_css_class(GTK_WIDGET(swr), "btn-red");
@@ -224,6 +223,7 @@ static gboolean update_power(void *asd) {
     gtk_widget_remove_css_class(GTK_WIDGET(swr), "btn-red");
   }
   gtk_label_set_text(GTK_LABEL(swr), buf);
+
   if(acom2000.opr_stby == 1) {
     gtk_button_set_label(GTK_BUTTON(button_oper), "Now ON");
     gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-yellow");
@@ -233,6 +233,7 @@ static gboolean update_power(void *asd) {
     gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-red");
     gtk_widget_add_css_class(button_oper, "btn-yellow");
   }
+
   sprintf(buf, "%.0lf C", acom2000.amp_temp);
   gtk_label_set_text(GTK_LABEL(temp), buf);
   
@@ -241,8 +242,7 @@ static gboolean update_power(void *asd) {
 
 static void startup_app(GtkApplication *app, gpointer data) {
 
-  GtkWidget *window, *vbox, *hbox;
-  GtkWidget *grid;
+  GtkWidget *window, *vbox, *hbox, *grid;
   GtkWidget *band_label, *fpower_label, *rpower_label, *swr_label, *temp_label, *button_config, *button_connect;
   GtkCssProvider *prov;
   GdkDisplay *display;
