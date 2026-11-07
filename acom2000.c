@@ -244,13 +244,13 @@ static void startup_app(GtkApplication *app, gpointer data) {
   gtk_label_set_xalign(GTK_LABEL(band), 0.0); // 0 = left, 1 = right
   
   fpower_label = gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(fpower_label), "<b>Forward power (W)</b>");
+  gtk_label_set_markup(GTK_LABEL(fpower_label), "<b>Forward power</b>");
   gtk_label_set_xalign(GTK_LABEL(fpower_label), 0.0); // 0 = left, 1 = right
   fpower = gtk_label_new("0.0 W");
   gtk_label_set_xalign(GTK_LABEL(fpower), 0.0); // 0 = left, 1 = right
 
   rpower_label = gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(rpower_label), "<b>Reflected power (W)</b>");
+  gtk_label_set_markup(GTK_LABEL(rpower_label), "<b>Reflected power</b>");
   gtk_label_set_xalign(GTK_LABEL(rpower_label), 0.0); // 0 = left, 1 = right
   rpower = gtk_label_new("0.0 W");
   gtk_label_set_xalign(GTK_LABEL(rpower), 0.0); // 0 = left, 1 = right
