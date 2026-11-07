@@ -155,31 +155,31 @@ static gboolean update_power(void *asd) {
   process_data(acom_fd);
   switch(acom2000.band) {
   case 1:
-    gtk_label_set_text(GTK_LABEL(band), "160");
+    gtk_label_set_text(GTK_LABEL(band), "160 m");
     break;
   case 2:
-    gtk_label_set_text(GTK_LABEL(band), "80");
+    gtk_label_set_text(GTK_LABEL(band), "80 m");
     break;
   case 3:
-    gtk_label_set_text(GTK_LABEL(band), "40");
+    gtk_label_set_text(GTK_LABEL(band), "40 m");
     break;
   case 4:
-    gtk_label_set_text(GTK_LABEL(band), "30");
+    gtk_label_set_text(GTK_LABEL(band), "30 m");
     break;
   case 5:
-    gtk_label_set_text(GTK_LABEL(band), "20");
+    gtk_label_set_text(GTK_LABEL(band), "20 m");
     break;
   case 6:
-    gtk_label_set_text(GTK_LABEL(band), "17");
+    gtk_label_set_text(GTK_LABEL(band), "17 m");
     break;
   case 7:
-    gtk_label_set_text(GTK_LABEL(band), "15");
+    gtk_label_set_text(GTK_LABEL(band), "15 m");
     break;
   case 8:
-    gtk_label_set_text(GTK_LABEL(band), "12");
+    gtk_label_set_text(GTK_LABEL(band), "12 m");
     break;
   case 9:
-    gtk_label_set_text(GTK_LABEL(band), "10");
+    gtk_label_set_text(GTK_LABEL(band), "10 m");
     break;
   default:
     gtk_label_set_text(GTK_LABEL(band), "----");
