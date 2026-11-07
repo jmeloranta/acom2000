@@ -286,9 +286,9 @@ static void startup_app(GtkApplication *app, gpointer data) {
   temp = gtk_label_new("---");
   gtk_label_set_xalign(GTK_LABEL(temp), 0.0); // 0 = left, 1 = right
   
-  button_oper = gtk_button_new_with_label("  STDBY  ");
+  button_oper = gtk_button_new_with_label("   STDBY   ");
   gtk_widget_set_sensitive(button_oper, FALSE);
-  button_config = gtk_button_new_with_label("    Port    ");
+  button_config = gtk_button_new_with_label("   Port   ");
   gtk_widget_set_hexpand(button_config, TRUE);
   button_connect = gtk_button_new_with_label("Connect");
 
