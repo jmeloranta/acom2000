@@ -1,8 +1,10 @@
 ROOT=/usr/local
 ICON_DIR=$(ROOT)/share/icons/hicolor/32x32/apps
+CFLAGS+=-g -O
+LDFLAGS+=-lm `pkg-config --cflags --libs gtk4`
 
 acom2000: acom2000.c config.h extern.h lib.c
-	cc -g -o acom2000 acom2000.c lib.c -lm -march=native `pkg-config --cflags --libs gtk4`
+	cc $(CFLAGS) -o acom2000 acom2000.c lib.c $(LDFLAGS)
 
 install: acom2000
 	-mkdir $(ICON_DIR)
