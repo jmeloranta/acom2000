@@ -122,19 +122,23 @@ static gboolean update_power(void *asd) {
   return 1;
 }
 
+static void startup_app(GtkApplication *app, gpointer data) {
 
-int main(int argc, char *argv[]) {
-
-  GtkWidget *window, *grid, *vbox;
+  GtkWidget *window;
+  GtkWidget *grid, *vbox;
   GtkWidget *band_label, *fpower_label, *rpower_label, *swr_label, *temp_label;
   GtkCssProvider *prov;
-    
-  signal(SIGINT, cleanup);
-  gtk_init();
-  window = gtk_window_new();
+  GdkDisplay *display;
+  GtkIconTheme *icon_theme;
+
+  window = gtk_application_window_new(app);
   gtk_window_set_title(GTK_WINDOW(window), "ACOM 2000A");
   gtk_window_set_default_size(GTK_WINDOW(window), 200, 120);
-
+  display = gtk_widget_get_display(window);
+  icon_theme = gtk_icon_theme_get_for_display(display);
+  gtk_icon_theme_add_search_path(icon_theme, ICON_DIR);
+  gtk_window_set_default_icon_name ("acom2000");
+  
   band_label = gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(band_label), "<b>Band</b>");
   gtk_label_set_xalign(GTK_LABEL(band_label), 0.0); // 0 = left, 1 = right
@@ -203,11 +207,20 @@ int main(int argc, char *argv[]) {
 					     GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
 					    );
   g_object_unref(prov);
-  gtk_widget_add_css_class(button_oper, "btn-yellow");
-  
-  g_signal_connect(button_oper, "clicked", G_CALLBACK(operate), NULL);
+  gtk_widget_add_css_class(button_oper, "btn-yellow");  
 
+  g_signal_connect(button_oper, "clicked", G_CALLBACK(operate), NULL);
   gtk_widget_set_visible(window, TRUE);
+}
+
+int main(int argc, char *argv[]) {
+
+  GtkApplication *app;
+  
+  signal(SIGINT, cleanup);
+  app = gtk_application_new("org.hopto.aa6kj.acom2000", G_APPLICATION_DEFAULT_FLAGS);
+
+  g_signal_connect (app, "activate", G_CALLBACK (startup_app), NULL);
 
   bzero(&acom2000, sizeof(struct acom2000));
   if((acom_fd = open(SERIAL_PORT, O_RDWR)) < 0) {
@@ -222,8 +235,7 @@ int main(int argc, char *argv[]) {
   if(acom2000.led_fwd > 0) set_standby(acom_fd);
   request_band(acom_fd);
 
-  while (g_list_model_get_n_items(gtk_window_get_toplevels()) > 0) // Main iteration loop
-    g_main_context_iteration(NULL, TRUE);
+  g_application_run (G_APPLICATION (app), argc, argv);  
 
   cleanup(1);
 }
