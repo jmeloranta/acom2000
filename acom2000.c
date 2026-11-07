@@ -36,6 +36,28 @@ const char *css =
   "   color: #888888;"
   "}";
 
+void error_dialog_closed(GObject *src, GAsyncResult *res, gpointer data) {
+
+  GtkAlertDialog *dialog = GTK_ALERT_DIALOG(src);
+  GtkApplication *app = GTK_APPLICATION(data);
+    
+  gtk_alert_dialog_choose_finish(dialog, res, NULL);
+  g_application_quit(G_APPLICATION(app));
+}
+
+void show_err_dialog(char *txt, GtkWindow *win) {
+
+  GtkAlertDialog *dd;
+  GtkApplication *app;
+
+  dd = gtk_alert_dialog_new("Error");
+  app = gtk_window_get_application(win);
+  gtk_alert_dialog_set_message(dd, txt);
+  gtk_alert_dialog_set_modal(dd, TRUE);
+  gtk_alert_dialog_choose(dd, win, NULL, error_dialog_closed, app);
+  
+}
+
 void cleanup(int x) {
 
   if(acom_fd != -1) {
@@ -46,15 +68,13 @@ void cleanup(int x) {
   exit(0);
 }  
 
-int amp_init() {
+int amp_init(GtkWindow *win) {
 
   char *home, buf[256];
   FILE *fp;
   
-  if(!(home = getenv("HOME"))) {
-    fprintf(stderr, "Can't get home directory.\n");
-    exit(1);
-  }			      
+  if(!(home = getenv("HOME")))
+    show_err_dialog("Can't get home directory.", win);
   sprintf(buf, "%s/%s", home, CONFIG);
 
   if(serial_port[0] == '\0') {
@@ -71,10 +91,9 @@ int amp_init() {
   if(acom_fd != -1) close(acom_fd);
   if((acom_fd = open(serial_port, O_RDWR)) < 0) return -1;
 
-  if(!(fp = fopen(buf, "w"))) {
-    fprintf(stderr, "Can't write config file.\n");
-    exit(1);
-  }
+  if(!(fp = fopen(buf, "w")))
+    show_err_dialog("Can't write config file.", win);
+
   fputs(serial_port, fp);
   fclose(fp);
 
@@ -89,10 +108,9 @@ int amp_init() {
 
 void doconnect(GtkWidget *button, gpointer data) {
 
-  if(amp_init() < 0) {
-    fprintf(stderr, "Can't connect.\n");
-    exit(1);
-  }
+  GtkWindow *win = GTK_WINDOW(gtk_widget_get_root(GTK_WIDGET(button)));
+  if(amp_init(win) < 0)
+    show_err_dialog("Can't connect.", win);
 }
 
 void dialog_callback(GObject *src, GAsyncResult *result, gpointer data) {
@@ -100,6 +118,7 @@ void dialog_callback(GObject *src, GAsyncResult *result, gpointer data) {
   GtkFileDialog *dialog;
   GError *err = NULL;
   GFile *file;
+  GtkApplication *app = GTK_APPLICATION(data);
   
   dialog = GTK_FILE_DIALOG(src);
   file = gtk_file_dialog_open_finish(dialog, result, &err);
@@ -109,10 +128,7 @@ void dialog_callback(GObject *src, GAsyncResult *result, gpointer data) {
     strcpy(serial_port, path);
     g_free(path);
     g_object_unref(file);
-  } else {
-    fprintf(stderr, "Cancel.\n");
-    exit(1);
-  }
+  } else g_application_quit(G_APPLICATION(app));
 }
 
 void config(GtkWidget *button, gpointer data) {
@@ -125,13 +141,12 @@ void config(GtkWidget *button, gpointer data) {
   dialog = gtk_file_dialog_new();
   gtk_file_dialog_set_title(dialog, "Select serial device");
   gtk_file_dialog_set_modal(dialog, TRUE);  
-  if(!g_file_test(SERIAL_PORTS, G_FILE_TEST_IS_DIR)) {
-    fprintf(stderr, "No serial ports on the system.\n");
-    exit(1); // no serial ports
-  }    
+  if(!g_file_test(SERIAL_PORTS, G_FILE_TEST_IS_DIR))
+    show_err_dialog("No serial ports present in the system.", win);
+
   devices = g_file_new_for_path(SERIAL_PORTS);
   gtk_file_dialog_set_initial_folder (dialog, devices);
-  gtk_file_dialog_open(dialog, GTK_WINDOW(win), NULL, dialog_callback, NULL);
+  gtk_file_dialog_open(dialog, GTK_WINDOW(win), NULL, dialog_callback, (gpointer *) gtk_window_get_application(win));
   g_object_unref(dialog);
   g_object_unref(devices);
 }
@@ -325,7 +340,7 @@ static void startup_app(GtkApplication *app, gpointer data) {
   g_signal_connect(button_connect, "clicked", G_CALLBACK(doconnect), NULL);
   gtk_widget_set_visible(window, TRUE);
 
-  amp_init();
+  amp_init(GTK_WINDOW(window));
 }
   
 int main(int argc, char *argv[]) {
@@ -334,6 +349,7 @@ int main(int argc, char *argv[]) {
   
   signal(SIGINT, cleanup);
   serial_port[0] = '\0';
+
   app = gtk_application_new("org.hopto.aa6kj.acom2000", G_APPLICATION_DEFAULT_FLAGS);
 
   g_signal_connect (app, "activate", G_CALLBACK (startup_app), NULL);
