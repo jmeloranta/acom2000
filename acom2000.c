@@ -225,11 +225,11 @@ static gboolean update_power(void *asd) {
   gtk_label_set_text(GTK_LABEL(swr), buf);
 
   if(acom2000.opr_stby == 1) {
-    gtk_button_set_label(GTK_BUTTON(button_oper), "  OPER  ");
+    gtk_button_set_label(GTK_BUTTON(button_oper), "OPER");
     gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-yellow");
     gtk_widget_add_css_class(button_oper, "btn-red");
   } else {
-    gtk_button_set_label(GTK_BUTTON(button_oper), "  STDBY  ");
+    gtk_button_set_label(GTK_BUTTON(button_oper), "STBY");
     gtk_widget_remove_css_class(GTK_WIDGET(button_oper), "btn-red");
     gtk_widget_add_css_class(button_oper, "btn-yellow");
   }
@@ -260,37 +260,44 @@ static void startup_app(GtkApplication *app, gpointer data) {
   gtk_label_set_markup(GTK_LABEL(band_label), "<b>Band</b>");
   gtk_label_set_xalign(GTK_LABEL(band_label), 0.0); // 0 = left, 1 = right
   band = gtk_label_new("----");
+  gtk_widget_set_margin_start(GTK_WIDGET(band), 50);
   gtk_label_set_xalign(GTK_LABEL(band), 0.0); // 0 = left, 1 = right
   
   fpower_label = gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(fpower_label), "<b>Forward power</b>");
   gtk_label_set_xalign(GTK_LABEL(fpower_label), 0.0); // 0 = left, 1 = right
   fpower = gtk_label_new("0.0 W");
+  gtk_widget_set_margin_start(GTK_WIDGET(fpower), 50);
   gtk_label_set_xalign(GTK_LABEL(fpower), 0.0); // 0 = left, 1 = right
 
   rpower_label = gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(rpower_label), "<b>Reflected power</b>");
   gtk_label_set_xalign(GTK_LABEL(rpower_label), 0.0); // 0 = left, 1 = right
   rpower = gtk_label_new("0.0 W");
+  gtk_widget_set_margin_start(GTK_WIDGET(rpower), 50);
   gtk_label_set_xalign(GTK_LABEL(rpower), 0.0); // 0 = left, 1 = right
 
   swr_label = gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(swr_label), "<b>SWR</b>");
   gtk_label_set_xalign(GTK_LABEL(swr_label), 0.0); // 0 = left, 1 = right
   swr = gtk_label_new("---");
+  gtk_widget_set_margin_start(GTK_WIDGET(swr), 50);
   gtk_label_set_xalign(GTK_LABEL(swr), 0.0); // 0 = left, 1 = right
 
   temp_label = gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(temp_label), "<b>Temperature</b>");
   gtk_label_set_xalign(GTK_LABEL(temp_label), 0.0); // 0 = left, 1 = right
   temp = gtk_label_new("---");
+  gtk_widget_set_margin_start(GTK_WIDGET(temp), 50);
   gtk_label_set_xalign(GTK_LABEL(temp), 0.0); // 0 = left, 1 = right
   
-  button_oper = gtk_button_new_with_label("   STDBY   ");
+  button_oper = gtk_button_new_with_label("STBY");
   gtk_widget_set_sensitive(button_oper, FALSE);
-  button_config = gtk_button_new_with_label("   Port   ");
-  gtk_widget_set_hexpand(button_config, TRUE);
+  gtk_widget_set_size_request(button_oper, 90, -1);
+  button_config = gtk_button_new_with_label("Port");
+  gtk_widget_set_size_request(button_config, 90, -1);
   button_connect = gtk_button_new_with_label("Connect");
+  gtk_widget_set_size_request(button_connect, 90, -1);
 
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
