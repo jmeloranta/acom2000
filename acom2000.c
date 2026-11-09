@@ -108,7 +108,7 @@ void doconnect(GtkWidget *button, gpointer data) {
 
   GtkWindow *win = GTK_WINDOW(gtk_widget_get_root(GTK_WIDGET(button)));
   if(amp_init(win) < 0)
-    show_err_dialog("Can't connect to amplifier.", win);
+    show_err_dialog("Can't connect to amplifier (Port).", win);
 }
 
 void dialog_callback(GObject *src, GAsyncResult *result, gpointer data) {
