@@ -10,14 +10,15 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include <gtk/gtk.h>
 #include <signal.h>
-#include <fcntl.h>
+#include <libserialport.h>
 #include "extern.h"
 #include "config.h"
 
 GtkWidget *band, *fpower, *rpower, *swr, *temp, *button_oper;
-int acom_fd = -1;
+struct sp_port *acom_port = NULL;
 extern struct acom2000 acom2000;
 char serial_port[256]; // serial device path
 
@@ -59,10 +60,12 @@ void show_err_dialog(char *txt, GtkWindow *win) {
 
 void cleanup(int x) {
 
-  if(acom_fd != -1) {
-    stop_measurement(acom_fd);
-    if(acom2000.led_fwd == 0) set_standby(acom_fd);
-    close(acom_fd);
+  if(acom_port != NULL) {
+    stop_measurement(acom_port);
+    if(acom2000.led_fwd == 0) set_standby(acom_port);
+    sp_close(acom_port);
+    sp_free_port(acom_port);
+    acom_port = NULL;
   }
   exit(0);
 }  
@@ -84,22 +87,39 @@ int amp_init(GtkWindow *win) {
       return -1;
     }
     fclose(fp);
+    serial_port[strcspn(serial_port, "\r\n")] = '\0';
   }
 
-  bzero(&acom2000, sizeof(struct acom2000));
-  if(acom_fd != -1) close(acom_fd);
-  if((acom_fd = open(serial_port, O_RDWR)) < 0) return -1;
+  memset(&acom2000, 0, sizeof(struct acom2000));
+  if(acom_port != NULL) {
+    sp_close(acom_port);
+    sp_free_port(acom_port);
+    acom_port = NULL;
+  }
+
+  if(sp_get_port_by_name(serial_port, &acom_port) != SP_OK) {
+    acom_port = NULL;
+    return -1;
+  }
+
+  if(sp_open(acom_port, SP_MODE_READ_WRITE) != SP_OK) {
+    sp_free_port(acom_port);
+    acom_port = NULL;
+    return -1;
+  }
 
   if(!(fp = fopen(buf, "w")))
     show_err_dialog("Can't write config file.", win);
-  fputs(serial_port, fp);
-  fclose(fp);
+  else {
+    fputs(serial_port, fp);
+    fclose(fp);
+  }
 
-  setup_tty(acom_fd);
-  set_standby(acom_fd);
+  setup_tty(acom_port);
+  set_standby(acom_port);
 
-  if(acom2000.led_fwd > 0) set_standby(acom_fd);
-  request_band(acom_fd);
+  if(acom2000.led_fwd > 0) set_standby(acom_port);
+  request_band(acom_port);
 
   return 0;
 }  
@@ -154,11 +174,11 @@ void operate(GtkWidget *button, gpointer data) {
   // Do not turn to oper/stdby if there is indication of drive present (trips the amp)
   if(acom2000.led_fwd > 0) return;
   if(acom2000.opr_stby == 0) {
-    set_operate(acom_fd);
-    start_measurement(acom_fd, 'i', 't'); // forward power(i) and reflected power(t)
+    set_operate(acom_port);
+    start_measurement(acom_port, 'i', 't'); // forward power(i) and reflected power(t)
   } else {
-    set_standby(acom_fd);
-    stop_measurement(acom_fd);
+    set_standby(acom_port);
+    stop_measurement(acom_port);
   }
 }
 
@@ -168,7 +188,7 @@ static gboolean update_power(void *asd) {
   double cswr, gamma;
 
   if(acom2000.address > 0) gtk_widget_set_sensitive(button_oper, TRUE);
-  process_data(acom_fd);
+  process_data(acom_port);
   switch(acom2000.band) {
   case 1:
     gtk_label_set_text(GTK_LABEL(band), "160 m");
@@ -309,63 +329,46 @@ static void startup_app(GtkApplication *app, gpointer data) {
   gtk_widget_set_margin_bottom(grid, 1);
   gtk_widget_set_margin_start(grid, 1);
   gtk_widget_set_margin_end(grid, 1);
-  
   gtk_grid_attach(GTK_GRID(grid), band_label, 0, 0, 1, 1); // col, row, width, height
   gtk_grid_attach(GTK_GRID(grid), band, 1, 0, 1, 1);
-
   gtk_grid_attach(GTK_GRID(grid), fpower_label, 0, 1, 1, 1);
   gtk_grid_attach(GTK_GRID(grid), fpower, 1, 1, 1, 1);
-
   gtk_grid_attach(GTK_GRID(grid), rpower_label, 0, 2, 1, 1);
   gtk_grid_attach(GTK_GRID(grid), rpower, 1, 2, 1, 1);
-
   gtk_grid_attach(GTK_GRID(grid), swr_label, 0, 3, 1, 1);
   gtk_grid_attach(GTK_GRID(grid), swr, 1, 3, 1, 1);
-
   gtk_grid_attach(GTK_GRID(grid), temp_label, 0, 4, 1, 1);
   gtk_grid_attach(GTK_GRID(grid), temp, 1, 4, 1, 1);
-
   gtk_box_append(GTK_BOX(hbox), button_oper);
   gtk_widget_set_sensitive(button_oper, FALSE);
   gtk_box_append(GTK_BOX(hbox), button_connect);
   gtk_box_append(GTK_BOX(hbox), button_config);
-  
   gtk_box_append(GTK_BOX(vbox), grid);
   gtk_box_append(GTK_BOX(vbox), hbox);
-  
   gtk_window_set_child(GTK_WINDOW(window), vbox);
-
   prov = gtk_css_provider_new();
-  gtk_css_provider_load_from_string(prov, css);  
+  gtk_css_provider_load_from_string(prov, css);
   gtk_style_context_add_provider_for_display(gdk_display_get_default(),
 					     GTK_STYLE_PROVIDER(prov),
 					     GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
 					    );
   g_object_unref(prov);
-  gtk_widget_add_css_class(button_oper, "btn-yellow");  
-
+  gtk_widget_add_css_class(button_oper, "btn-yellow");
   g_signal_connect(button_oper, "clicked", G_CALLBACK(operate), NULL);
   g_signal_connect(button_config, "clicked", G_CALLBACK(config), NULL);
   g_signal_connect(button_connect, "clicked", G_CALLBACK(doconnect), NULL);
   gtk_widget_set_visible(window, TRUE);
-
   amp_init(GTK_WINDOW(window));
 }
-  
-int main(int argc, char *argv[]) {
 
+int main(int argc, char *argv[]) {
   GtkApplication *app;
-  
+
   signal(SIGINT, cleanup);
   serial_port[0] = '\0';
-
   app = gtk_application_new("org.hopto.aa6kj.acom2000", G_APPLICATION_DEFAULT_FLAGS);
-
   g_signal_connect (app, "activate", G_CALLBACK (startup_app), NULL);
-  
   g_timeout_add(UPDATE, update_power, NULL);
-
-  g_application_run (G_APPLICATION (app), argc, argv);  
-
+  g_application_run (G_APPLICATION (app), argc, argv);
   cleanup(1);
 }

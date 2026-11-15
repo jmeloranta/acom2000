@@ -1,5 +1,5 @@
 /* 
- * Library to interface with ACOM 2000A via RS232.
+ * Library to interface with ACOM 2000A via RS232 using libserialport.
  *
  */
 
@@ -8,11 +8,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <termios.h>
-#include <sys/select.h>
-#include <arpa/inet.h>
+#include <libserialport.h>
 #include "extern.h"
 #include "config.h"
 
@@ -22,91 +19,72 @@ static int debug = 0;     // Message debug prints (0 = off, 1 = on)
 
 struct acom2000 acom2000;
 
-void setup_tty(int fd) {
+void setup_tty(struct sp_port *port) {
   
-  struct termios param;
-  
-  if(tcgetattr(fd, &param) < 0) {
-    fprintf(stderr, "Status get failed.\n");
-    exit(1);
-  }
-  
-  param.c_cflag &= ~PARENB;
-  param.c_cflag &= ~CSTOPB;
-  param.c_cflag &= ~CSIZE; 
-  param.c_cflag |= CS8;
-  param.c_cflag &= ~CRTSCTS;
-  param.c_cflag |= CREAD | CLOCAL;
-  param.c_lflag &= ~ICANON;
-  param.c_lflag &= ~ECHO;
-  param.c_lflag &= ~ECHOE;
-  param.c_lflag &= ~ECHONL;
-  param.c_lflag &= ~ISIG;
-  param.c_iflag &= ~(IXON | IXOFF | IXANY);
-  param.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL);  
-  param.c_oflag &= ~OPOST;
-  param.c_oflag &= ~ONLCR;
-  
-  cfsetispeed(&param, B1200);
-  cfsetospeed(&param, B1200);
-  
-  if(tcsetattr(fd, TCSANOW, &param) < 0) {
-    fprintf(stderr, "Status set failed.\n");
+  if (sp_set_baudrate(port, 1200) != SP_OK ||
+      sp_set_bits(port, 8) != SP_OK ||
+      sp_set_parity(port, SP_PARITY_NONE) != SP_OK ||
+      sp_set_stopbits(port, 1) != SP_OK ||
+      sp_set_flowcontrol(port, SP_FLOWCONTROL_NONE) != SP_OK) {
+    fprintf(stderr, "Serial port configuration failed.\n");
     exit(1);
   }
 }
 
-static int read_until_null(int fd, uint8_t *buf, int maxlen) {
+static int read_until_null(struct sp_port *port, uint8_t *buf, int maxlen) {
   
   int pos = 0, bytes_rd;
   
   while(1) {
-    if((bytes_rd = read(fd, buf + pos, 1)) < 0) return -1;
-    if(buf[0] >= 0x80 && buf[0] <= 0xaf) { // single byte data
-      buf[1] = '\0';
-      return 1;
-    }
+    bytes_rd = sp_blocking_read(port, buf + pos, 1, 100);
+    if(bytes_rd < 0) return -1;
     if(bytes_rd == 0) {
       usleep(10000);
       continue;
     }
-    if(pos == maxlen) return -1;
+    if(pos == 0 && buf[0] >= 0x80 && buf[0] <= 0xaf) { // single byte data
+      buf[1] = '\0';
+      return 1;
+    }
+    if(pos >= maxlen - 1) return -1;
     if(buf[pos] == '\0') break;
     pos++;
   }
   return pos;
 }
 
-static int read_cmd(int fd, uint8_t *src, uint8_t *dst, uint8_t *msg) {
+static int read_cmd(struct sp_port *port, uint8_t *src, uint8_t *dst, uint8_t *msg) {
 
   uint8_t buf[MAXLEN];
 
-  for(buf[0] = buf[1] = 0; buf[0] == 0 && buf[1] == 0; ) // eat up broken messages at the start
-    read_until_null(fd, buf, MAXLEN);
-  if(strlen(buf) == 1) {
+  for(buf[0] = buf[1] = 0; buf[0] == 0 && buf[1] == 0; ) { // eat up broken messages at the start
+    if(read_until_null(port, buf, MAXLEN) < 0) return -1;
+  }
+  if(strlen((char *)buf) == 1) {
     *dst = *src = 0;
     msg[0] = buf[0];
     msg[1] = buf[1];
   } else {
     *dst = buf[0];
     *src = buf[1];
-    strcpy(msg, buf+2);
+    strcpy((char *)msg, (char *)(buf + 2));
   }
+  return 0;
 }
 
-static void write_slow(int fd, uint8_t *cmd, int length) {
+static void write_slow(struct sp_port *port, uint8_t *cmd, int length) {
 
   if(length >= MAXLEN) {
     fprintf(stderr, "ACOM2000: Attempt to send too long message.\n");
     exit(1);
   }
   for (int i = 0; i < length; i++) {
-    if(write(fd, &cmd[i], 1) < 0) {
+    if(sp_blocking_write(port, &cmd[i], 1, 1000) < 0) {
       fprintf(stderr, "Device write error.\n");
       exit(1);
     }
-    tcdrain(fd);   // is this needed?
-    usleep(10000); // -"-
+    sp_drain(port);
+    usleep(10000);
   }
 }
 
@@ -119,44 +97,40 @@ static void write_slow(int fd, uint8_t *cmd, int length) {
  *
  */
 
-static void send_cmd(int fd, uint8_t src, uint8_t dst, uint8_t *msg) {
+static void send_cmd(struct sp_port *port, uint8_t src, uint8_t dst, uint8_t *msg) {
 
   uint8_t buf[MAXLEN];
 
+  if(!port) return;
   buf[0] = dst;
   buf[1] = src;
-  strcpy(buf+2, msg);
-  write_slow(fd, buf, strlen(msg) + 3); // include null
+  strcpy((char *)(buf + 2), (char *)msg);
+  write_slow(port, buf, strlen((char *)msg) + 3); // include null
 }
 
-void set_operate(int fd) {
+void set_operate(struct sp_port *port) {
 
-  send_cmd(fd, COMPUTER, AMPLIFIER, "O");
+  send_cmd(port, COMPUTER, AMPLIFIER, (uint8_t *)"O");
   acom2000.opr_stby = 1;
   sleep(1); // needed?
 }
 
-void set_standby(int fd) {
+void set_standby(struct sp_port *port) {
 
-  send_cmd(fd, COMPUTER, AMPLIFIER, "S");
+  send_cmd(port, COMPUTER, AMPLIFIER, (uint8_t *)"S");
   acom2000.opr_stby = 0;
   sleep(1); // needed?
 }
 
-void process_data(int fd) {
+void process_data(struct sp_port *port) {
 
-  fd_set fds;
-  struct timeval timeout;
   uint8_t src, dst, msg[MAXLEN];
   double tmp, tmp2, tmp3;
   
-  while(1) {
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 10000;   // 10 ms
-    FD_ZERO(&fds);
-    FD_SET(fd, &fds);
-    if(!select(fd+1, &fds, NULL, NULL, &timeout)) return; // no more data
-    read_cmd(fd, &src, &dst, msg);
+  if(!port) return;
+
+  while(sp_input_waiting(port) > 0) {
+    if(read_cmd(port, &src, &dst, msg) < 0) return;
     if(src == 0 && dst == 0) { // single byte cmd for RCU leds
       if(msg[0] >= 0x80 && msg[0] <= 0x90) acom2000.led_fwd = msg[0] - 0x80;
       else if(msg[0] >= 0xa0 && msg[0] <= 0xa8) acom2000.led_refl = msg[0] - 0xa0;
@@ -167,7 +141,6 @@ void process_data(int fd) {
       fprintf(stderr, "Message from %2x to %2x - ignored.\n", src, dst);
       return;
     }
-    if(!FD_ISSET(fd, &fds)) return;
     tmp = (double) ((msg[1] - '0') * 16 + (msg[2] - '0')); // xx 
     tmp2 = (double) ((msg[3] - '0') * 16 + (msg[4] - '0')); // yy
     tmp3 = (double) ((msg[1] - '0') * 16 * 16 * 16 + (msg[2] - '0') * 16 * 16 + (msg[3] - '0') * 16 + msg[4] - '0'); // xxyy
@@ -185,7 +158,7 @@ void process_data(int fd) {
       if(debug) fprintf(stderr, "Amplifier network address = %2x\n", src);
       break;
     case 'I':
-      tmp = (double) atoi(msg+1);
+      tmp = (double) atoi((char *)(msg + 1));
       acom2000.amp_temp = tmp * 10.0;
       if(debug) fprintf(stderr, "Amplifier temperature = %lf\n", acom2000.amp_temp);
       break;
@@ -230,7 +203,7 @@ void process_data(int fd) {
       if(debug) fprintf(stderr, "IF rear = %lf A.\n", acom2000.if_rear);
       break;
     case 'o': // I grid (mA)
-      acom2000.if_rear = tmp / 10.0;
+      acom2000.grid_i = tmp / 10.0;
       if(debug) fprintf(stderr, "I grid = %lf mA.\n", acom2000.grid_i);
       break;
     case 'p': // I plate (mA)
@@ -267,18 +240,11 @@ void process_data(int fd) {
       break;
     case 'z': // VSWR
       if(tmp != 0.0) {
-	acom2000.vswr = (2.5 * tmp + tmp2) / (2.5 * tmp - tmp2);
-	if(debug) fprintf(stderr, "VSWR = %lf.\n", acom2000.vswr);
+        acom2000.vswr = (2.5 * tmp + tmp2) / (2.5 * tmp - tmp2);
+        if(debug) fprintf(stderr, "VSWR = %lf.\n", acom2000.vswr);
       }
       break;
     case 'U':
-      // RCU status leds
-      // bit 0 oper led: 0 = off, 1 = on
-      // bit 1 drive led: 0 = off, 1 = on
-      // bit 2 IP led: 0 = off, 1 = on
-      // bit 3 not used
-      // bits 4,5: (0,0) = off, (0,1) = blinks, (1,0) = on
-      // bits 6,7: (0,0) = off, (0,1) = blinks, (1,0) = on
       acom2000.rcu_status = tmp;
       if(debug) fprintf(stderr, "RCU status = %2x.\n", acom2000.rcu_status);
       break;
@@ -286,24 +252,24 @@ void process_data(int fd) {
       if(msg[1] == 'M') acom2000.rcu_active = 1; // RCU is active, can't measure
       if(debug) fprintf(stderr, "RCU active - can't measure from computer.\n");
       break;
-  case 'V': // Error state: 0 = no error, 1 = stop drive power , 2 = drive power too high, 3 = loss of user data
+    case 'V': // Error state: 0 = no error, 1 = stop drive power , 2 = drive power too high, 3 = loss of user data
               // 4 = battery warning
       acom2000.error = msg[1] - '0';
       if(debug) fprintf(stderr, "Error state = %x.\n", acom2000.error);
       break;
     case 'W':
       if(msg[1] == '1')
-	// 2-3 = xx, 4 = a, 5 = u, 6 = b
-	acom2000.band = msg[6] - '0'; // band number (1 = 160, 2 = 80, 3 = 40, 4 = 30, 5 = 20, 6 = 17, 7 = 15, 8 = 12, 9 = 10
+        // 2-3 = xx, 4 = a, 5 = u, 6 = b
+        acom2000.band = msg[6] - '0'; // band number (1 = 160, 2 = 80, 3 = 40, 4 = 30, 5 = 20, 6 = 17, 7 = 15, 8 = 12, 9 = 10
       if(debug) fprintf(stderr, "Current band = %x.\n", acom2000.band);
       break;
     default:
-      // ignore
+      break;
     }
   }
 }
 
-void start_measurement(int fd, uint8_t a, uint8_t b) {
+void start_measurement(struct sp_port *port, uint8_t a, uint8_t b) {
 
   uint8_t buf[32];
 
@@ -312,15 +278,15 @@ void start_measurement(int fd, uint8_t a, uint8_t b) {
   buf[2] = b;
   buf[3] = '\0';
   acom2000.rcu_active = 0;
-  send_cmd(fd, COMPUTER, AMPLIFIER, buf);
+  send_cmd(port, COMPUTER, AMPLIFIER, buf);
 }
 
-void stop_measurement(int fd) {
+void stop_measurement(struct sp_port *port) {
 
-  send_cmd(fd, COMPUTER, AMPLIFIER, "MM");
+  send_cmd(port, COMPUTER, AMPLIFIER, (uint8_t *)"MM");
 }
 
-void request_band(int fd) {
+void request_band(struct sp_port *port) {
 
-  send_cmd(fd, COMPUTER, AMPLIFIER, "W7");
+  send_cmd(port, COMPUTER, AMPLIFIER, (uint8_t *)"W7");
 }

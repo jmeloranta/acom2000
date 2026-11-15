@@ -1,3 +1,5 @@
+#include <libserialport.h>
+
 struct acom2000 {
   uint8_t address;     // Amplifier address from broadcasted L message
   uint8_t opr_stby;    // 0 = standby, 1 = operate
@@ -19,7 +21,7 @@ struct acom2000 {
   double screen_i;     // Screen current (mA)
   double mains_v;      // Mains voltage (V)
   double plate_v;      // Plate voltage (V)
-  double refl_power;   // Reflected power (V)
+  double refl_power;   // Reflected power (W)
   double screen_v;     // Screen voltage (V)
   double temp_f;       // Temperature of the front tube (C)
   double temp_r;       // Temperature of the rear tube (C)
@@ -30,5 +32,5 @@ struct acom2000 {
   uint8_t band;        // Current band (1 - 9)
 };
 
-extern void set_operate(int), set_standby(int), process_data(int), start_measurement(int, uint8_t, uint8_t);
-extern void stop_measurement(int), setup_tty(int), request_band(int);
+extern void set_operate(struct sp_port *), set_standby(struct sp_port *), process_data(struct sp_port *), start_measurement(struct sp_port *, uint8_t, uint8_t);
+extern void stop_measurement(struct sp_port *), setup_tty(struct sp_port *), request_band(struct sp_port *);
