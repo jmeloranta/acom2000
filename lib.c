@@ -36,7 +36,7 @@ static int read_until_null(struct sp_port *port, uint8_t *buf, int maxlen) {
   int pos = 0, bytes_rd;
   
   while(1) {
-    bytes_rd = sp_blocking_read(port, buf + pos, 1, 100);
+    bytes_rd = sp_nonblocking_read(port, buf + pos, 1);
     if(bytes_rd < 0) return -1;
     if(bytes_rd == 0) {
       usleep(10000);
@@ -79,7 +79,7 @@ static void write_slow(struct sp_port *port, uint8_t *cmd, int length) {
     exit(1);
   }
   for (int i = 0; i < length; i++) {
-    if(sp_blocking_write(port, &cmd[i], 1, 1000) < 0) {
+    if(sp_nonblocking_write(port, &cmd[i], 1) < 0) {
       fprintf(stderr, "Device write error.\n");
       exit(1);
     }
