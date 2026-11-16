@@ -14,6 +14,7 @@
 #include "config.h"
 
 #define MAXLEN 255
+#define DELAY 20000     // RS232 read/write delay in microseconds (20 ms)
 
 static int debug = 0;     // Message debug prints (0 = off, 1 = on)
 
@@ -39,7 +40,7 @@ static int read_until_null(struct sp_port *port, uint8_t *buf, int maxlen) {
     bytes_rd = sp_nonblocking_read(port, buf + pos, 1);
     if(bytes_rd < 0) return -1;
     if(bytes_rd == 0) {
-      usleep(10000);
+      usleep(DELAY);
       continue;
     }
     if(pos == 0 && buf[0] >= 0x80 && buf[0] <= 0xaf) { // single byte data
@@ -84,7 +85,7 @@ static void write_slow(struct sp_port *port, uint8_t *cmd, int length) {
       exit(1);
     }
     sp_drain(port);
-    usleep(10000);
+    usleep(DELAY);
   }
 }
 
