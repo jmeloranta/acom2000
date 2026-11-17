@@ -1,15 +1,36 @@
-ROOT=/usr/local
-ICON_DIR=$(ROOT)/share/icons/hicolor/32x32/apps
-CFLAGS=-g -O
-LDFLAGS=-lm `pkg-config --cflags --libs gtk4 libserialport`
+CC ?= gcc
+PKG_CONFIG ?= pkg-config
 
-acom2000: acom2000.c config.h extern.h lib.c
-	cc $(CFLAGS) -o acom2000 acom2000.c lib.c $(LDFLAGS)
+CFLAGS = -Wall -Wextra -O2 $(shell $(PKG_CONFIG) --cflags gtk4 libserialport)
+LDFLAGS = $(shell $(PKG_CONFIG) --libs gtk4 libserialport) -lm
 
-install: acom2000
-	-mkdir -p $(ICON_DIR)
-	install -m 644 acom2000.png $(ICON_DIR)
-	install -m 755 acom2000 $(ROOT)/bin
+SRCS = acom2000.c lib.c
+OBJS = $(SRCS:.c=.o)
+TARGET = acom2000
+
+# Detect Windows (MSYS2 / MinGW / Cygwin)
+ifeq ($(OS),Windows_NT)
+	TARGET := $(TARGET).exe
+	LDFLAGS += -mwindows
+endif
+
+.PHONY: all clean install
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CC) $(OBJS) -o $(TARGET) $(LDFLAGS)
+
+%.o: %.c extern.h config.h
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	-rm -f *~ acom2000 *.o
+	rm -f $(OBJS) $(TARGET) *~
+
+# Optional install rule for Linux/macOS
+ifneq ($(OS),Windows_NT)
+PREFIX ?= /usr/local
+install: $(TARGET)
+	install -d $(DESTDIR)$(PREFIX)/bin
+	install -m 755 $(TARGET) $(DESTDIR)$(PREFIX)/bin/$(TARGET)
+endif

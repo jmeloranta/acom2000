@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <glib.h>
 #include <libserialport.h>
 #include "extern.h"
 #include "config.h"
@@ -40,7 +40,7 @@ static int read_until_null(struct sp_port *port, uint8_t *buf, int maxlen) {
     bytes_rd = sp_nonblocking_read(port, buf + pos, 1);
     if(bytes_rd < 0) return -1;
     if(bytes_rd == 0) {
-      usleep(DELAY);
+      g_usleep(DELAY);
       continue;
     }
     if(pos == 0 && buf[0] >= 0x80 && buf[0] <= 0xaf) { // single byte data
@@ -85,7 +85,7 @@ static void write_slow(struct sp_port *port, uint8_t *cmd, int length) {
       exit(1);
     }
     sp_drain(port);
-    usleep(DELAY);
+    g_usleep(DELAY);
   }
 }
 
@@ -106,21 +106,21 @@ static void send_cmd(struct sp_port *port, uint8_t src, uint8_t dst, uint8_t *ms
   buf[0] = dst;
   buf[1] = src;
   strcpy((char *)(buf + 2), (char *)msg);
-  write_slow(port, buf, strlen((char *)msg) + 3); // include null
+  write_slow(port, buf, (int)strlen((char *)msg) + 3); // include null
 }
 
 void set_operate(struct sp_port *port) {
 
   send_cmd(port, COMPUTER, AMPLIFIER, (uint8_t *)"O");
   acom2000.opr_stby = 1;
-  sleep(1); // needed?
+  g_usleep(1000000); // 1 second
 }
 
 void set_standby(struct sp_port *port) {
 
   send_cmd(port, COMPUTER, AMPLIFIER, (uint8_t *)"S");
   acom2000.opr_stby = 0;
-  sleep(1); // needed?
+  g_usleep(1000000); // 1 second
 }
 
 void process_data(struct sp_port *port) {
@@ -291,3 +291,4 @@ void request_band(struct sp_port *port) {
 
   send_cmd(port, COMPUTER, AMPLIFIER, (uint8_t *)"W7");
 }
+

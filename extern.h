@@ -1,3 +1,7 @@
+#ifndef EXTERN_H
+#define EXTERN_H
+
+#include <stdint.h>
 #include <libserialport.h>
 
 struct acom2000 {
@@ -34,3 +38,6 @@ struct acom2000 {
 
 extern void set_operate(struct sp_port *), set_standby(struct sp_port *), process_data(struct sp_port *), start_measurement(struct sp_port *, uint8_t, uint8_t);
 extern void stop_measurement(struct sp_port *), setup_tty(struct sp_port *), request_band(struct sp_port *);
+
+#endif
+
